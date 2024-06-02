@@ -2,15 +2,23 @@
 #AutoIt3Wrapper_Icon=..\AutoItv11.ico
 #AutoIt3Wrapper_Res_Comment=Convert and resize from/to *NEW* WEBP, JPG, BMP, GIF, PNG,...
 #AutoIt3Wrapper_Res_Description=Convert and resize from/to *NEW* WEBP, JPG, BMP, GIF, PNG,...
-#AutoIt3Wrapper_Res_Fileversion=3.0.0.0
+#AutoIt3Wrapper_Res_Fileversion=3.0.1.0
 #AutoIt3Wrapper_Res_ProductName=Pics Converter V3
-#AutoIt3Wrapper_Res_ProductVersion=3.0.0.0
+#AutoIt3Wrapper_Res_ProductVersion=3.0.1.0
 #AutoIt3Wrapper_Res_CompanyName=cramaboule.com
+#AutoIt3Wrapper_Run_Before=WriteTimestamp.exe "%in%"
+#AutoIt3Wrapper_Run_After=copy %in% D:\Nextcloud\Cramy\Github\PicsConverter\
+#AutoIt3Wrapper_Run_After=copy %out% D:\Nextcloud\Cramy\Github\PicsConverter\
+#AutoIt3Wrapper_Run_After=copy ExtMsgBox.au3 D:\Nextcloud\Cramy\Github\PicsConverter\
+#AutoIt3Wrapper_Run_After=copy StringSize.au3 D:\Nextcloud\Cramy\Github\PicsConverter\
 #AutoIt3Wrapper_Run_Tidy=y
 #Tidy_Parameters=/reel
 #AutoIt3Wrapper_Run_Au3Stripper=y
 #Au3Stripper_Parameters=/mo
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
+#Region ;Timestamp =====================
+#                     2024/06/02 15:28:37
+#EndRegion ;Timestamp =====================
 #cs ----------------------------------------------------------------------------
 
 	AutoIt Version: 3.3.16.1
@@ -23,11 +31,21 @@
 						Convert from/to JPG, BMP, GIF, PNG ,...!!! AND NEW WEBP
 						Enjoy !
 
-	Link: https://developers.google.com/speed/webp/download?hl=fr
+	Link: WebP: https://developers.google.com/speed/webp/download
 
 	Bug:
 
-	To Do:	WEBP: Resize webp, keep metadata, use mutli-Threding
+	To Do:	WEBP: Resize webp, keep metadata.
+
+	V3.0.1.0	02.06.2023:
+				Improved: faster search with _ArrayConcatenate()
+				Changed: -lossless can be used with -q (for WebP)
+				Improved: faster convertion using -mt for WebP
+					https://developers.google.com/speed/webp/docs/cwebp
+				Improved: optimize decodig webp
+					https://github.com/webmproject/libwebp/blob/0905f61c8511f080bec75ba98f67d53bb2906ccf/doc/tools.md
+				Added: Decoders from GDI+
+				Added: auto select input encoder
 
 	V3.0.0.0	31.05.2023:
 				Added: WebP
@@ -59,9 +77,10 @@
 #include <Array.au3>
 #include 'ExtMsgBox.au3'
 
-$head = "Pics Conversion V3.0"
+$head = "Pics Conversion V3.0.1.0"
 
-Local $Param = 0, $Decoder, $InDecoder[1][10], $ToCombo, $OldOutEncoder, $Oldpxpercent, $OldValSlider = '0', $OldJPGQuality = '100', $OldHeight, $Oldwidth, $OldCheckRatio, $OldLossless, $Parameter
+Local $Param = 0, $Decoder, $ToCombo, $ToComboOut, $OldOutEncoder, $Oldpxpercent, $Label2
+Local $OldValSlider = '0', $OldJPGQuality = '100', $OldHeight, $Oldwidth, $OldCheckRatio, $OldLossless, $Parameter
 Dim $aInterpolation[2][7] = [[$GDIP_INTERPOLATIONMODE_HIGHQUALITYBICUBIC, $GDIP_INTERPOLATIONMODE_HIGHQUALITYBILINEAR, $GDIP_INTERPOLATIONMODE_NEARESTNEIGHBOR, $GDIP_INTERPOLATIONMODE_BICUBIC, $GDIP_INTERPOLATIONMODE_BILINEAR, $GDIP_INTERPOLATIONMODE_HIGHQUALITY, $GDIP_INTERPOLATIONMODE_LOWQUALITY], ['Bicubic HQ (default)', 'Nearest neighbor', 'Bilinear HQ', 'Bicubic (low)', 'Bilinear (low)', 'High-quality', 'Low-quality']]
 
 $pathWebP = _CheckWebP()
@@ -70,21 +89,24 @@ _GDIPlus_Startup()
 $testBMP = _ScreenCapture_Capture("", 0, 0, 1, 1)
 $hImage = _GDIPlus_BitmapCreateFromHBITMAP($testBMP)
 $Decoder = _GDIPlus_Decoders()
+$Encoder = _GDIPlus_Encoders()
 _GDIPlus_ImageDispose($hImage)
 _WinAPI_DeleteObject($testBMP)
 _GDIPlus_Shutdown()
 
 If $pathWebP <> '' Then
 	$ToCombo &= 'WEBP|'
-	$sEncoder = 'WEBP|JPG|BMP|GIF|PNG'
-	$sEncoderDefault = 'WEBP'
-Else
-	$sEncoder = 'JPG|BMP|GIF|PNG'
-	$sEncoderDefault = 'JPG'
+	$ToComboOut &= 'WEBP|'
 EndIf
 
+For $i = 1 To $Encoder[0][0]
+	$Split = StringSplit($Encoder[$i][6], ";")
+	For $j = 1 To $Split[0]
+		$ToComboOut &= StringTrimLeft($Split[$j], 2) & "|"
+	Next
+Next
+
 For $i = 1 To $Decoder[0][0]
-	ReDim $InDecoder[$Decoder[0][0] + 1][10]
 	$Split = StringSplit($Decoder[$i][6], ";")
 	For $j = 1 To $Split[0]
 		$ToCombo &= StringTrimLeft($Split[$j], 2) & "|"
@@ -98,7 +120,7 @@ GUICtrlSetData(-1, $ToCombo)
 $InputFolder = GUICtrlCreateInput("Input Folder", 15, 25, 120, 21)
 $BrowseInput = GUICtrlCreateButton("Browse...", 60, 50, 75, 25, $WS_GROUP)
 $Subfolder = GUICtrlCreateCheckbox("Subfolers ?", 60, 75, 75, 21)
-$Label2 = GUICtrlCreateLabel("Convert from:", 15, 100, 67, 17)
+$Label9 = GUICtrlCreateLabel("Convert from:", 15, 100, 67, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 $Group4 = GUICtrlCreateGroup(" Resize ", 155, 5, 140, 145)
 $Resizing = GUICtrlCreateCheckbox("Resizing", 165, 25, 55, 21)
@@ -124,7 +146,7 @@ GUICtrlSetState($pxpercent, $GUI_DISABLE)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 $Group2 = GUICtrlCreateGroup(" Output ", 305, 5, 140, 145)
 $OutputEncoder = GUICtrlCreateCombo("", 315, 120, 120, 25)
-GUICtrlSetData(-1, $sEncoder, $sEncoderDefault)
+GUICtrlSetData(-1, $ToComboOut)
 $OutputFolder = GUICtrlCreateInput("Output Folder", 315, 25, 120, 21)
 $BrowseOutput = GUICtrlCreateButton("Browse...", 360, 50, 75, 25, $WS_GROUP)
 $Label1 = GUICtrlCreateLabel("Convert to:", 315, 100, 56, 17)
@@ -136,6 +158,7 @@ $JPGQlty = GUICtrlCreateInput("100", 465, 87, 30, 21)
 GUICtrlSetState($Group3, $GUI_ENABLE)
 GUICtrlSetState($Slider, $GUI_DISABLE)
 GUICtrlSetState($JPGQlty, $GUI_DISABLE)
+GUICtrlSetState($Lossless, $GUI_DISABLE)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 $GO = GUICtrlCreateButton("Convert", 177, 160, 200, 40, $WS_GROUP)
 GUISetState(@SW_SHOW)
@@ -152,18 +175,31 @@ While 1
 		Case $nMsg = $GUI_EVENT_CLOSE
 			Exit
 		Case $nMsg = $BrowseInput
-			$InFold = FileSelectFolder("Choose a folder", "", 7)
-			If $InFold <> "" Then
+			$sInFold = GUICtrlRead($InputFolder)
+			If $sInFold = "Choose Folder" Then $sInFold = ""
+			$sInFold = FileSelectFolder("Choose a folder", $sInFold, 7, '', GUICreate(""))
+			If $sInFold <> "" Then
+				$InFold = $sInFold
+				GUICtrlSetData($InputFolder, 'Please wait...')
+				$sFindExt = _FindExtention($InFold, $ToCombo)
+				If $sFindExt <> '' Then
+					GUICtrlSetData($InputEncoder, $sFindExt)
+				EndIf
 				GUICtrlSetData($InputFolder, $InFold)
 				GUICtrlSetData($OutputFolder, $InFold)
 			EndIf
 		Case $nMsg = $BrowseOutput
-			$OutFold = FileSelectFolder("Choose a folder", "", 7)
-			If $OutFold <> "" Then
+			$sOutFold = GUICtrlRead($OutputFolder)
+			If $sOutFold = "Choose Folder" Then $sOutFold = ""
+			$sOutFold = FileSelectFolder("Choose a folder", $sOutFold, 1, '', GUICreate(""))
+			If $sOutFold <> "" Then
+				$OutFold = $sOutFold
 				GUICtrlSetData($OutputFolder, $OutFold)
 			EndIf
 		Case $OutEncoder <> $OldOutEncoder
 			If ($OutEncoder <> 'JPG') And ($OutEncoder <> 'WEBP') Then
+				GUICtrlSetState($Lossless, $GUI_UNCHECKED)
+				GUICtrlSetState($Lossless, $GUI_DISABLE)
 				GUICtrlSetState($Group3, $GUI_DISABLE)
 				GUICtrlSetState($Slider, $GUI_DISABLE)
 				GUICtrlSetState($JPGQlty, $GUI_DISABLE)
@@ -187,16 +223,6 @@ While 1
 				EndIf
 			EndIf
 			$OldOutEncoder = $OutEncoder
-		Case $nMsg = $Lossless
-			If _IsChecked($Lossless) Then
-				GUICtrlSetState($Group3, $GUI_ENABLE)
-				GUICtrlSetState($Slider, $GUI_DISABLE)
-				GUICtrlSetState($JPGQlty, $GUI_DISABLE)
-			Else
-				GUICtrlSetState($Group3, $GUI_ENABLE)
-				GUICtrlSetState($Slider, $GUI_ENABLE)
-				GUICtrlSetState($JPGQlty, $GUI_ENABLE)
-			EndIf
 		Case $ValSlider <> $OldValSlider
 			GUICtrlSetData($JPGQlty, 100 - $ValSlider)
 			$OldValSlider = $ValSlider
@@ -264,9 +290,9 @@ While 1
 				$aPos = WinGetPos($Conv)
 				$Form1 = GUICreate("", 420, 100, ($aPos[0] + ($aPos[2] / 2)) - 210, ($aPos[1] + ($aPos[3] / 2)) - 70, BitOR($WS_POPUP, $WS_BORDER), $WS_EX_TOOLWINDOW, $Conv)
 				Global $ProgFile = GUICtrlCreateProgress(10, 10, 400, 15, $PBS_SMOOTH)
+				$Label2 = GUICtrlCreateLabel("", 10, 30, 400, 29)
 				$ProgAll = GUICtrlCreateProgress(10, 60, 400, 15, $PBS_SMOOTH)
 				$Label1 = GUICtrlCreateLabel("", 10, 80, 400, 17)
-				$Label2 = GUICtrlCreateLabel("", 10, 30, 400, 17)
 				GUISetState(@SW_SHOW)
 				If $OutEncoder = "JPG" Then ; Set JPG quality
 					$TParam = _GDIPlus_ParamInit(1)
@@ -295,10 +321,10 @@ While 1
 						GUICtrlSetData($ProgFile, 0)
 						GUICtrlSetData($ProgAll, ($i / $FileList[0]) * 100)
 						$sPicsIn = $FileList[$i]
-						GUICtrlSetData($Label2, $sPicsIn)
-						GUICtrlSetData($Label1, $i & " / " & $FileList[0])
 						$sTempPath = StringReplace($sPicsIn, "." & $InEncoder, "." & $OutEncoder) ; change extention
 						$sPicsOut = StringReplace($sTempPath, $InPath, $OutPath)
+						GUICtrlSetData($Label2, $sPicsIn & @CRLF & $sPicsOut)
+						GUICtrlSetData($Label1, $i & " / " & $FileList[0])
 						$aPath = StringSplit($sPicsOut, '\')
 						$sPathOut = StringReplace($sPicsOut, $aPath[UBound($aPath) - 1], '') ; out path (without file name)
 						If Not FileExists($sPathOut) Then DirCreate($sPathOut)
@@ -345,9 +371,13 @@ EndFunc   ;==>_IsChecked
 
 Func _CheckWebP()
 	Local $Count = 0
-	DirCreate('C:\Webp')
-	$Count += FileInstall('libwebp-1.4.0-windows-x64\bin\cwebp.exe', 'C:\Webp\cwebp.exe', $FC_OVERWRITE)
-	$Count += FileInstall('libwebp-1.4.0-windows-x64\bin\dwebp.exe', 'C:\Webp\dwebp.exe', $FC_OVERWRITE)
+	If Not (FileExists('C:\Webp\cwebp.exe')) And Not (FileExists('C:\Webp\dwebp.exe')) Then
+		DirCreate('C:\Webp')
+		$Count += FileInstall('libwebp-1.4.0-windows-x64\bin\cwebp.exe', 'C:\Webp\cwebp.exe', $FC_OVERWRITE)
+		$Count += FileInstall('libwebp-1.4.0-windows-x64\bin\dwebp.exe', 'C:\Webp\dwebp.exe', $FC_OVERWRITE)
+	Else
+		$Count = 2
+	EndIf
 	If $Count = 2 Then
 		Return 'C:\Webp'
 	Else
@@ -358,18 +388,17 @@ EndFunc   ;==>_CheckWebP
 Func _FindPathName(ByRef $aRet, $sPath, $sFindFile, $bSubFolder = 0)
 	Local $sSubFolderPath, $iIndex, $aFolders
 	If Not IsArray($aRet) Then Return SetError(1, 0, -1)
-	$aFile = _FileListToArray($sPath, $sFindFile, $FLTA_FILES)
+	$aFile = _FileListToArray($sPath, $sFindFile, $FLTA_FILES, 1)
 	If Not (@error) Then ; no files
-		For $k = 1 To $aFile[0]
-			_ArrayAdd($aRet, $sPath & '\' & $aFile[$k])
-		Next
+		$aRet[0] = _ArrayConcatenate($aRet, $aFile, 1)
 	EndIf
+	GUICtrlSetData($Label2, 'Preparing files... ' & $aRet[0])
 	$aFolders = _FileListToArray($sPath, "*", $FLTA_FOLDERS)
 	If $bSubFolder Then
 		If Not (@error) Then ; no folders
 			For $i = 1 To $aFolders[0]
 				$sSubFolderPath = $sPath & "\" & $aFolders[$i]
-				$aRet[0] = _FindPathName($aRet, $sSubFolderPath, $sFindFile)
+				$aRet[0] = _FindPathName($aRet, $sSubFolderPath, $sFindFile, $bSubFolder)
 			Next
 		EndIf
 	EndIf
@@ -382,21 +411,21 @@ Func _EncodeToWebP($sspathWebP, $ssPicsIn, $ssPicsOut, $bbLossless, $sQuality)
 	$ssspathWebP = $sspathWebP & '\cwebp.exe'
 	$ssPicsIn = '"' & $ssPicsIn & '"'
 	$ssPicsOut = '-o "' & $ssPicsOut & '"'
+	$sParameter = '-mt -quiet -q ' & $sQuality
 	If _IsChecked($Lossless) Then
-		$sParameter = '-lossless'
-	Else
-		$sParameter = '-q ' & $sQuality
+		$sParameter &= ' -lossless '
 	EndIf
-	$cmd = $ssspathWebP & ' ' & $ssPicsIn & ' ' & $sParameter & ' ' & $ssPicsOut
+	$cmd = $ssspathWebP & ' ' & $sParameter & ' ' & $ssPicsIn & ' ' & $ssPicsOut
 	GUICtrlSetData($ProgFile, 40)
 	RunWait(@ComSpec & " /c " & $cmd, @SystemDir, @SW_HIDE)
 	GUICtrlSetData($ProgFile, 60)
 EndFunc   ;==>_EncodeToWebP
 
 Func _DecodeFromWebP($spathWebP, $ssPicsIn, $ssPicsOut, $cclsid)
-	$sOutput = ''
-	$sspathWebP = $spathWebP & '\dwebp.exe'
-	$cmd = $sspathWebP & ' ' & $ssPicsIn & ' -o -'
+	Local $sOutput = '', $sParam
+	$ssspathWebP = $spathWebP & '\dwebp.exe'
+	$sParameter = '-mt -quiet'
+	$cmd = $ssspathWebP & ' ' & $sParameter & ' ' & $ssPicsIn & ' -o -'
 	Local $iPID = Run(@ComSpec & " /c " & $cmd, @SystemDir, @SW_HIDE, $STDERR_MERGED)
 	While 1
 		$sOutput &= StdoutRead($iPID)
@@ -404,15 +433,33 @@ Func _DecodeFromWebP($spathWebP, $ssPicsIn, $ssPicsOut, $cclsid)
 			ExitLoop
 		EndIf
 	WEnd
-	$aOutput = StringSplit($sOutput, '...' & @CRLF, $STR_ENTIRESPLIT)
-	If Not IsArray($aOutput) Then
-		_ExtMsgBox(16, 0, "Caution!", "no image return from WEBP", 0, $Conv)
-		Exit
-	EndIf
-	$sOutput = StringToBinary($aOutput[2]) ; Convert the string to binary.
+	$sOutput = StringToBinary($sOutput)     ; Convert the string to binary.
 	$hGdi = _GDIPlus_BitmapCreateFromMemory($sOutput)
 	_GDIPlus_ImageSaveToFileEx($hGdi, $ssPicsOut, $cclsid)
 	_GDIPlus_BitmapDispose($hGdi)
+	#cs
+	    Ok = 0,
+	    GenericError = 1,
+	    InvalidParameter = 2,
+	    OutOfMemory = 3,
+	    ObjectBusy = 4,
+	    InsufficientBuffer = 5,
+	    NotImplemented = 6,
+	    Win32Error = 7,
+	    WrongState = 8,
+	    Aborted = 9,
+	    FileNotFound = 10,
+	    ValueOverflow = 11,
+	    AccessDenied = 12,
+	    UnknownImageFormat = 13,
+	    FontFamilyNotFound = 14,
+	    FontStyleNotFound = 15,
+	    NotTrueTypeFont = 16,
+	    UnsupportedGdiplusVersion = 17,
+	    GdiplusNotInitialized = 18,
+	    PropertyNotFound = 19,
+	    PropertyNotSupported = 20,
+	#ce
 EndFunc   ;==>_DecodeFromWebP
 
 Func _Resize($hhImage, $bRatio, $iiHeight, $iiWidth, $iipxpercent, $iInterpolation)
@@ -466,26 +513,19 @@ Func _CheckResize($bChecked)
 	EndIf
 EndFunc   ;==>_CheckResize
 
-#cs
-    Ok = 0,
-    GenericError = 1,
-    InvalidParameter = 2,
-    OutOfMemory = 3,
-    ObjectBusy = 4,
-    InsufficientBuffer = 5,
-    NotImplemented = 6,
-    Win32Error = 7,
-    WrongState = 8,
-    Aborted = 9,
-    FileNotFound = 10,
-    ValueOverflow = 11,
-    AccessDenied = 12,
-    UnknownImageFormat = 13,
-    FontFamilyNotFound = 14,
-    FontStyleNotFound = 15,
-    NotTrueTypeFont = 16,
-    UnsupportedGdiplusVersion = 17,
-    GdiplusNotInitialized = 18,
-    PropertyNotFound = 19,
-    PropertyNotSupported = 20,
-#ce
+Func _FindExtention($_sPath, $_sDecoder)
+	Dim $_aArray[1]
+	Local $sDrive = '', $sDir = '', $sFileName = '', $sExtension = ''
+	$_aDecoder = StringSplit($_sDecoder, '|')
+	_FindPathName($_aArray, $_sPath, '*', 0)
+	For $i = 1 To UBound($_aArray) - 1
+		$_aPath = _PathSplit($_aArray[$i], $sDrive, $sDir, $sFileName, $sExtension)
+		$extension = StringTrimLeft($_aPath[$PATH_EXTENSION], 1)
+		For $j = 1 To UBound($_aDecoder) - 1
+			If $extension = $_aDecoder[$j] Then
+				Return $_aDecoder[$j]
+			EndIf
+		Next
+	Next
+	Return ''
+EndFunc   ;==>_FindExtention
