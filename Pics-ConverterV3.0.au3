@@ -13,7 +13,7 @@
 #AutoIt3Wrapper_Run_After=copy StringSize.au3 D:\Nextcloud\Cramy\Github\PicsConverter\
 #AutoIt3Wrapper_Run_Tidy=y
 #Tidy_Parameters=/reel
-#AutoIt3Wrapper_Run_Au3Stripper=n
+#AutoIt3Wrapper_Run_Au3Stripper=y
 #Au3Stripper_Parameters=/mo
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #Region ;Timestamp =====================
