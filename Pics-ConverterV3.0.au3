@@ -2,26 +2,26 @@
 #AutoIt3Wrapper_Icon=..\AutoItv11.ico
 #AutoIt3Wrapper_Res_Comment=Convert and resize from/to *NEW* WEBP, JPG, BMP, GIF, PNG,...
 #AutoIt3Wrapper_Res_Description=Convert and resize from/to *NEW* WEBP, JPG, BMP, GIF, PNG,...
-#AutoIt3Wrapper_Res_Fileversion=3.0.1.0
+#AutoIt3Wrapper_Res_Fileversion=3.0.2.0
 #AutoIt3Wrapper_Res_ProductName=Pics Converter V3
-#AutoIt3Wrapper_Res_ProductVersion=3.0.1.0
+#AutoIt3Wrapper_Res_ProductVersion=3.0.2.0
 #AutoIt3Wrapper_Res_CompanyName=cramaboule.com
-#AutoIt3Wrapper_Run_Before=WriteTimestamp.exe "%in%"
-#AutoIt3Wrapper_Run_After=copy %in% D:\Nextcloud\Cramy\Github\PicsConverter\
-#AutoIt3Wrapper_Run_After=copy %out% D:\Nextcloud\Cramy\Github\PicsConverter\
-#AutoIt3Wrapper_Run_After=copy ExtMsgBox.au3 D:\Nextcloud\Cramy\Github\PicsConverter\
-#AutoIt3Wrapper_Run_After=copy StringSize.au3 D:\Nextcloud\Cramy\Github\PicsConverter\
+#AutoIt3Wrapper_Run_Before=%scriptdir%\..\WriteTimestampAndVersion.exe "%in%"
+#AutoIt3Wrapper_Run_After=copy %in% ..\..\Github\PicsConverter\
+#AutoIt3Wrapper_Run_After=copy %out% ..\..\Github\PicsConverter\
+#AutoIt3Wrapper_Run_After=copy ExtMsgBox.au3 ..\..\Github\PicsConverter\
+#AutoIt3Wrapper_Run_After=copy StringSize.au3 ..\..\Github\PicsConverter\
 #AutoIt3Wrapper_Run_Tidy=y
 #Tidy_Parameters=/reel
 #AutoIt3Wrapper_Run_Au3Stripper=y
 #Au3Stripper_Parameters=/mo
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
-#Region ;Timestamp =====================
-#                     2024/06/02 15:28:37
+#Region    ;Timestamp =====================
+#    Last compile at : 2025/12/09 10:23:11
 #EndRegion ;Timestamp =====================
 #cs ----------------------------------------------------------------------------
 
-	AutoIt Version: 3.3.16.1
+	AutoIt Version: 3.3.18.0
 	Author:         Cramaboule
 	Date:			October 2009 V1
 
@@ -31,16 +31,24 @@
 						Convert from/to JPG, BMP, GIF, PNG ,...!!! AND NEW WEBP
 						Enjoy !
 
-	Link: WebP: https://developers.google.com/speed/webp/download
+	Link: WebP: https://developers.google.com/speed/webp/download  /  https://developers.google.com/speed/webp/docs/cwebp
 
 	Bug:
 
-	To Do:	WEBP: Resize webp, keep metadata.
+	To Do:	how to keep metadata?
 
+	V3.0.2.0	04.12.2025:
+				New: New version of WEBP
+				Changed: path to WEBP
+				New: Resize from/to WEBP
+				Changed: rearrange Guis
+	V3.0.1.1	04.06.2023:
+				fix bugs
+				Added: pourcent
 	V3.0.1.0	02.06.2023:
 				Improved: faster search with _ArrayConcatenate()
 				Changed: -lossless can be used with -q (for WebP)
-				Improved: faster convertion using -mt for WebP
+				Improved: faster conversion using -mt for WebP
 					https://developers.google.com/speed/webp/docs/cwebp
 				Improved: optimize decodig webp
 					https://github.com/webmproject/libwebp/blob/0905f61c8511f080bec75ba98f67d53bb2906ccf/doc/tools.md
@@ -77,13 +85,13 @@
 #include <Array.au3>
 #include 'ExtMsgBox.au3'
 
-$head = "Pics Conversion V3.0.1.0"
+$sVersion = 'V3.0.2.0'
+$head = 'Pics Conversion ' & $sVersion
 
 Local $Param = 0, $Decoder, $ToCombo, $ToComboOut, $OldOutEncoder, $Oldpxpercent, $Label2
-Local $OldValSlider = '0', $OldJPGQuality = '100', $OldHeight, $Oldwidth, $OldCheckRatio, $OldLossless, $Parameter
+Local $OldValSlider = '0', $OldJPGQuality = '100', $OldHeight, $Oldwidth, $OldCheckRatio, $OldLossless, $OldResize, $Parameter, $WidthHeight[2]
 Dim $aInterpolation[2][7] = [[$GDIP_INTERPOLATIONMODE_HIGHQUALITYBICUBIC, $GDIP_INTERPOLATIONMODE_HIGHQUALITYBILINEAR, $GDIP_INTERPOLATIONMODE_NEARESTNEIGHBOR, $GDIP_INTERPOLATIONMODE_BICUBIC, $GDIP_INTERPOLATIONMODE_BILINEAR, $GDIP_INTERPOLATIONMODE_HIGHQUALITY, $GDIP_INTERPOLATIONMODE_LOWQUALITY], ['Bicubic HQ (default)', 'Nearest neighbor', 'Bilinear HQ', 'Bicubic (low)', 'Bilinear (low)', 'High-quality', 'Low-quality']]
-
-$pathWebP = _CheckWebP()
+Global $pathWebP = _CheckWebP()
 
 _GDIPlus_Startup()
 $testBMP = _ScreenCapture_Capture("", 0, 0, 1, 1)
@@ -113,54 +121,68 @@ For $i = 1 To $Decoder[0][0]
 	Next
 Next
 
-$Conv = GUICreate($head, 555, 210, -1, -1)
+$Conv = GUICreate($head, 570, 210, -1, -1)
 $Group1 = GUICtrlCreateGroup(" Input ", 5, 5, 140, 145)
 $InputEncoder = GUICtrlCreateCombo("", 15, 120, 120, 25)
 GUICtrlSetData(-1, $ToCombo)
 $InputFolder = GUICtrlCreateInput("Input Folder", 15, 25, 120, 21)
 $BrowseInput = GUICtrlCreateButton("Browse...", 60, 50, 75, 25, $WS_GROUP)
-$Subfolder = GUICtrlCreateCheckbox("Subfolers ?", 60, 75, 75, 21)
+$Subfolder = GUICtrlCreateCheckbox("Subfolers ?", 60, 77, 75, 21)
 $Label9 = GUICtrlCreateLabel("Convert from:", 15, 100, 67, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
-$Group4 = GUICtrlCreateGroup(" Resize ", 155, 5, 140, 145)
-$Resizing = GUICtrlCreateCheckbox("Resizing", 165, 25, 55, 21)
-$pxpercent = GUICtrlCreateCombo('px', 230, 25, 40, 25)
+
+$Group4 = GUICtrlCreateGroup(" Resize ", 155, 5, 160, 145)
+$Resizing = GUICtrlCreateCheckbox("Resizing", 165, 25, 70, 18)
+$pxpercent = GUICtrlCreateCombo('px', 250, 25, 40, 25)
 GUICtrlSetData(-1, '%')
-$Ratio = GUICtrlCreateCheckbox("Keep aspect ratio", 170, 50, 115, 21)
+$Ratio = GUICtrlCreateCheckbox("Keep aspect ratio", 175, 47, 115, 20)
 GUICtrlSetState(-1, $GUI_CHECKED)
-$Width = GUICtrlCreateInput("", 160, 75, 49, 21)
-$Label4 = GUICtrlCreateLabel("px", 210, 80, 15, 17)
-$Height = GUICtrlCreateInput("", 225, 75, 49, 21)
-$Label5 = GUICtrlCreateLabel("px", 275, 80, 15, 17)
-$Label3 = GUICtrlCreateLabel("Interpolation mode:", 165, 100, 104, 17)
+
+$Width = GUICtrlCreateInput("", 170, 72, 49, 21)
+$Label4 = GUICtrlCreateLabel("px", 220, 77, 15, 17)
+$Height = GUICtrlCreateInput("", 248, 72, 49, 21)
+$Label5 = GUICtrlCreateLabel("px", 298, 77, 15, 17)
+$Label6 = GUICtrlCreateLabel("w:", 158, 77, 10, 17)
+$Label7 = GUICtrlCreateLabel("h:", 238, 77, 10, 17)
+
+$Label3 = GUICtrlCreateLabel("Interpolation mode:", 168, 100, 104, 17)
 $Interpolation = GUICtrlCreateCombo($aInterpolation[1][0], 165, 120, 120, 25, BitOR($CBS_DROPDOWN, $CBS_AUTOHSCROLL))
 GUICtrlSetData(-1, $aInterpolation[1][1] & "|" & $aInterpolation[1][2] & "|" & $aInterpolation[1][3] & "|" & $aInterpolation[1][4] & "|" & $aInterpolation[1][5] & "|" & $aInterpolation[1][6])
+
 GUICtrlSetState($Ratio, $GUI_DISABLE)
 GUICtrlSetState($Width, $GUI_DISABLE)
 GUICtrlSetState($Label4, $GUI_DISABLE)
 GUICtrlSetState($Height, $GUI_DISABLE)
 GUICtrlSetState($Label5, $GUI_DISABLE)
 GUICtrlSetState($Label3, $GUI_DISABLE)
+GUICtrlSetState($Label6, $GUI_DISABLE)
+GUICtrlSetState($Label7, $GUI_DISABLE)
 GUICtrlSetState($Interpolation, $GUI_DISABLE)
 GUICtrlSetState($pxpercent, $GUI_DISABLE)
+
 GUICtrlCreateGroup("", -99, -99, 1, 1)
-$Group2 = GUICtrlCreateGroup(" Output ", 305, 5, 140, 145)
-$OutputEncoder = GUICtrlCreateCombo("", 315, 120, 120, 25)
+
+$Group2 = GUICtrlCreateGroup(" Output ", 325, 5, 140, 145)
+$OutputEncoder = GUICtrlCreateCombo("", 335, 120, 120, 25)
 GUICtrlSetData(-1, $ToComboOut)
-$OutputFolder = GUICtrlCreateInput("Output Folder", 315, 25, 120, 21)
-$BrowseOutput = GUICtrlCreateButton("Browse...", 360, 50, 75, 25, $WS_GROUP)
-$Label1 = GUICtrlCreateLabel("Convert to:", 315, 100, 56, 17)
+$OutputFolder = GUICtrlCreateInput("Output Folder", 335, 25, 120, 21)
+$BrowseOutput = GUICtrlCreateButton("Browse...", 380, 50, 75, 25, $WS_GROUP)
+$Label1 = GUICtrlCreateLabel("Convert to:", 335, 100, 56, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
-$Group3 = GUICtrlCreateGroup(" Quality ", 455, 5, 90, 145)
-$Lossless = GUICtrlCreateCheckbox('Lossless', 465, 25, 60, 21)
-$Slider = GUICtrlCreateSlider(495, 47, 35, 100, BitOR($TBS_VERT, $TBS_TOP, $TBS_LEFT))
-$JPGQlty = GUICtrlCreateInput("100", 465, 87, 30, 21)
+
+$Group3 = GUICtrlCreateGroup(" Quality ", 475, 5, 90, 145)
+$Lossless = GUICtrlCreateCheckbox('Lossless', 480, 25, 60, 25)
+$Slider = GUICtrlCreateSlider(515, 47, 35, 100, BitOR($TBS_VERT, $TBS_TOP, $TBS_LEFT))
+$JPGQlty = GUICtrlCreateInput("100", 485, 87, 30, 21)
+
 GUICtrlSetState($Group3, $GUI_ENABLE)
 GUICtrlSetState($Slider, $GUI_DISABLE)
 GUICtrlSetState($JPGQlty, $GUI_DISABLE)
 GUICtrlSetState($Lossless, $GUI_DISABLE)
+
 GUICtrlCreateGroup("", -99, -99, 1, 1)
-$GO = GUICtrlCreateButton("Convert", 177, 160, 200, 40, $WS_GROUP)
+
+$GO = GUICtrlCreateButton("Convert", 185, 160, 200, 40, $WS_GROUP)
 GUISetState(@SW_SHOW)
 
 While 1
@@ -186,7 +208,9 @@ While 1
 					GUICtrlSetData($InputEncoder, $sFindExt)
 				EndIf
 				GUICtrlSetData($InputFolder, $InFold)
-				GUICtrlSetData($OutputFolder, $InFold)
+				If Not (StringInStr(GUICtrlRead($OutputFolder), "\")) Then
+					GUICtrlSetData($OutputFolder, $InFold)
+				EndIf
 			EndIf
 		Case $nMsg = $BrowseOutput
 			$sOutFold = GUICtrlRead($OutputFolder)
@@ -217,10 +241,10 @@ While 1
 					GUICtrlSetState($Lossless, $GUI_ENABLE)
 					GUICtrlSetState($Slider, $GUI_ENABLE)
 					GUICtrlSetState($JPGQlty, $GUI_ENABLE)
-					_CheckResize(0)
-					GUICtrlSetState($Resizing, $GUI_UNCHECKED)
-					GUICtrlSetState($Resizing, $GUI_DISABLE)
 				EndIf
+			EndIf
+			If _IsChecked($Resizing) <> $OldResize Then
+				_CheckResize(_IsChecked($Resizing))
 			EndIf
 			$OldOutEncoder = $OutEncoder
 		Case $ValSlider <> $OldValSlider
@@ -233,17 +257,22 @@ While 1
 			$OldJPGQuality = $JPGQuality
 		Case $nMsg = $Resizing
 			_CheckResize(_IsChecked($Resizing))
+			$OldResize = _CheckResize(_IsChecked($Resizing))
 		Case $sPxpercent <> $Oldpxpercent
 			If $sPxpercent = 'px' Then
 				GUICtrlSetData($Label4, 'px')
 				GUICtrlSetData($Label5, 'px')
-				GUICtrlSetData($Width, '')
-				GUICtrlSetData($Height, '')
 			Else
 				GUICtrlSetData($Label4, '%')
 				GUICtrlSetData($Label5, '%')
-				GUICtrlSetData($Width, '100')
-				GUICtrlSetData($Height, '100')
+				$sWidth = GUICtrlRead($Width)
+				If $sWidth < 0 And $sWidth > 100 Then
+					GUICtrlSetData($Width, '100')
+				EndIf
+				$sHeight = GUICtrlRead($Height)
+				If $sHeight < 0 And $sHeight > 100 Then
+					GUICtrlSetData($sHeight, '100')
+				EndIf
 			EndIf
 			$Oldpxpercent = $sPxpercent
 		Case (($iWidth <> $Oldwidth Or $iHeight <> $OldHeight) And _IsChecked($Ratio) And GUICtrlRead($pxpercent) = '%')
@@ -273,14 +302,15 @@ While 1
 			$OldCheckRatio = _IsChecked($Ratio)
 			$Oldwidth = $iWidth
 			$OldHeight = $iHeight
+			;	------------------------------------- Convert ----------------------------------------
 		Case $nMsg = $GO
 			$InPath = GUICtrlRead($InputFolder)
 			$OutPath = GUICtrlRead($OutputFolder)
 			$InEncoder = GUICtrlRead($InputEncoder)
 			$OutEncoder = GUICtrlRead($OutputEncoder)
-			If StringInStr($InPath, "\") = 0 Then
+			If Not (StringInStr($InPath, "\")) Or Not (StringInStr($OutPath, "\")) Then
 				_ExtMsgBox(16, 0, "Caution!", "Please select a folder!", 0, $Conv)
-			ElseIf ($InEncoder = "") Or ($InEncoder = $OutEncoder And $OutEncoder <> "JPG" And Not (_IsChecked($Resizing))) Then
+			ElseIf ($InEncoder = "") Or ($InEncoder = $OutEncoder And $OutEncoder <> "JPG" And $OutEncoder <> "WEBP" And Not (_IsChecked($Resizing))) Then
 				_ExtMsgBox(16, 0, "Caution!", "Please choose different encoder/decoder or enable resizing", 0, $Conv)
 			ElseIf GUICtrlRead($Width) = '' And GUICtrlRead($Height) = '' And _IsChecked($Resizing) Then
 				_ExtMsgBox(16, 0, "Caution!", "Width and/or height cannot be empty", 0, $Conv)
@@ -288,11 +318,14 @@ While 1
 ;~ 				do the conversion process...
 ;~ 				do the progress bar GUI
 				$aPos = WinGetPos($Conv)
-				$Form1 = GUICreate("", 420, 100, ($aPos[0] + ($aPos[2] / 2)) - 210, ($aPos[1] + ($aPos[3] / 2)) - 70, BitOR($WS_POPUP, $WS_BORDER), $WS_EX_TOOLWINDOW, $Conv)
-				Global $ProgFile = GUICtrlCreateProgress(10, 10, 400, 15, $PBS_SMOOTH)
-				$Label2 = GUICtrlCreateLabel("", 10, 30, 400, 29)
-				$ProgAll = GUICtrlCreateProgress(10, 60, 400, 15, $PBS_SMOOTH)
-				$Label1 = GUICtrlCreateLabel("", 10, 80, 400, 17)
+				$iWinWidth = 550
+				$iWinHeight = 135
+				$Form1 = GUICreate("", $iWinWidth, $iWinHeight, ($aPos[0] + ($aPos[2] / 2)) - ($iWinWidth / 2), ($aPos[1] + ($aPos[3] / 2)) - ($iWinHeight / 2), BitOR($WS_POPUP, $WS_BORDER), $WS_EX_TOOLWINDOW, $Conv)
+				Global $ProgFile = GUICtrlCreateProgress(10, 10, $iWinWidth - 20, 20, $PBS_SMOOTH)
+				$Label2 = GUICtrlCreateLabel("", 10, 35, $iWinWidth - 20, 20, $SS_LEFT)
+				$ProgAll = GUICtrlCreateProgress(10, 60, $iWinWidth - 20, 20, $PBS_SMOOTH)
+				$Label3 = GUICtrlCreateLabel("", 10, 85, $iWinWidth - 20, 20, $SS_LEFT)
+				$Label1 = GUICtrlCreateLabel("", 10, 110, $iWinWidth - 20, 20, $SS_LEFT)
 				GUISetState(@SW_SHOW)
 				If $OutEncoder = "JPG" Then ; Set JPG quality
 					$TParam = _GDIPlus_ParamInit(1)
@@ -309,44 +342,98 @@ While 1
 						EndIf
 					Next
 				EndIf
-;~ 				==================================================== process itself
+;~ 				==================================================== process itself ==============================================
 				Dim $FileList[1]
 				$iFiles = _FindPathName($FileList, $InPath, "*." & $InEncoder, _IsChecked($Subfolder))
 				If $iFiles <= 0 Then
 					_ExtMsgBox(16, 0, "Caution!", "No files found or invalid path!", 0, $Conv)
 				Else
 					_GDIPlus_Startup()
-					$clsid = _GDIPlus_EncodersGetCLSID($OutEncoder)
+					If $OutEncoder <> 'WEBP' Then
+						$clsid = _GDIPlus_EncodersGetCLSID($OutEncoder)
+					EndIf
+					$nBin = 0
+					If $OutEncoder = 'WEBP' Then $nBin = BitOR($nBin, 4)  ; cwebp : compresse un fichier image en fichier WebP
+					If $InEncoder = 'WEBP' Then $nBin = BitOR($nBin, 2) ; dwebp : décompresser un fichier WebP dans un fichier image
+					If _IsChecked($Resizing) Then $nBin = BitOR($nBin, 1)
+;~ 					ConsoleWrite($nBin & @CRLF)
 					For $i = 1 To $FileList[0]
-						GUICtrlSetData($ProgFile, 0)
+						$iProgFile = 0
+						GUICtrlSetData($ProgFile, $iProgFile)
 						GUICtrlSetData($ProgAll, ($i / $FileList[0]) * 100)
 						$sPicsIn = $FileList[$i]
 						$sTempPath = StringReplace($sPicsIn, "." & $InEncoder, "." & $OutEncoder) ; change extention
 						$sPicsOut = StringReplace($sTempPath, $InPath, $OutPath)
-						GUICtrlSetData($Label2, $sPicsIn & @CRLF & $sPicsOut)
-						GUICtrlSetData($Label1, $i & " / " & $FileList[0])
+						GUICtrlSetData($Label2, $sPicsIn)
+						GUICtrlSetData($Label3, $sPicsOut)
+						GUICtrlSetData($Label1, $i & " / " & $FileList[0] & ' - ' & Round(($i / $FileList[0]) * 100, 1) & '%')
 						$aPath = StringSplit($sPicsOut, '\')
 						$sPathOut = StringReplace($sPicsOut, $aPath[UBound($aPath) - 1], '') ; out path (without file name)
 						If Not FileExists($sPathOut) Then DirCreate($sPathOut)
-						If $InEncoder = 'WEBP' Or $OutEncoder = 'WEBP' Then
-							If $OutEncoder = 'WEBP' Then
-								_EncodeToWebP($pathWebP, $sPicsIn, $sPicsOut, _IsChecked($Lossless), GUICtrlRead($JPGQlty))
-							ElseIf $InEncoder = 'WEBP' Then
-								_DecodeFromWebP($pathWebP, $sPicsIn, $sPicsOut, $clsid)
-							EndIf
-						Else
+						If $nBin = 2 Or $nBin = 3 Then                              ; $InEncoder = 'WEBP'
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$hImage = _DecodeFromWebP($pathWebP, $sPicsIn, $sPicsOut, $clsid)
+;~ 							ConsoleWrite('2, 3' & @CRLF)
+						EndIf
+						If $nBin = 3 Then
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$hImage = _Resize(_IsChecked($Ratio), GUICtrlRead($Width), GUICtrlRead($Height), GUICtrlRead($pxpercent), 'none', $OutEncoder, $InEncoder, $hImage, $sPicsIn)
+;~ 							ConsoleWrite('only 3' & @CRLF)
+						EndIf
+						If $nBin = 5 Then
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
 							$hImage = _GDIPlus_ImageLoadFromFile($sPicsIn)
-							GUICtrlSetData($ProgFile, 10)
-							If _IsChecked($Resizing) Then ; resizing
-								GUICtrlSetData($ProgFile, 20)
-								$hImage = _Resize($hImage, _IsChecked($Ratio), GUICtrlRead($Height), GUICtrlRead($Width), GUICtrlRead($pxpercent), $iInterpolation)
-								GUICtrlSetData($ProgFile, 40)
-							EndIf
-							GUICtrlSetData($ProgFile, 60)
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$WidthHeight = _Resize(_IsChecked($Ratio), GUICtrlRead($Width), GUICtrlRead($Height), GUICtrlRead($pxpercent), 'none', $OutEncoder, $InEncoder, $hImage)
+;~ 							ConsoleWrite('only5' & @CRLF)
+						EndIf
+						If $nBin = 7 Then
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$WidthHeight = _Resize(_IsChecked($Ratio), GUICtrlRead($Width), GUICtrlRead($Height), GUICtrlRead($pxpercent), 'none', $OutEncoder, $InEncoder, '', $sPicsIn)
+;~ 							ConsoleWrite('only 7' & @CRLF)
+						EndIf
+						If $nBin = 2 Or $nBin = 4 Or $nBin = 6 Then      ; _IsChecked($Resizing) = False
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$WidthHeight[0] = ''
+							$WidthHeight[1] = ''
+;~ 							ConsoleWrite('2, 4, 6' & @CRLF)
+						EndIf
+						If $nBin >= 4 And $nBin <= 7 Then          ; $OutEncoder = 'WEBP'
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							_EncodeToWebP($pathWebP, $sPicsIn, $sPicsOut, _IsChecked($Lossless), GUICtrlRead($JPGQlty), $WidthHeight[0], $WidthHeight[1])
+;~ 							ConsoleWrite('4 To 7' & @CRLF)
+						EndIf
+						If $nBin = 1 Then      ;  $OutEncoder <> 'WEBP',   _IsChecked($Resizing)
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$hImage = _GDIPlus_ImageLoadFromFile($sPicsIn)
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$hImage = _Resize(_IsChecked($Ratio), GUICtrlRead($Width), GUICtrlRead($Height), GUICtrlRead($pxpercent), $iInterpolation, $OutEncoder, $InEncoder, $hImage, '')
+;~ 							ConsoleWrite('1' & @CRLF)
+						EndIf
+						If $nBin = 0 Then     ;  $OutEncoder <> 'WEBP', $InEncoder <> 'WEBP',  _IsChecked($Resizing) = false
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
+							$hImage = _GDIPlus_ImageLoadFromFile($sPicsIn)
+;~ 							ConsoleWrite('0' & @CRLF)
+						EndIf
+						If $nBin >= 0 And $nBin <= 3 Then        ; $OutEncoder <> 'WEBP'
+							$iProgFile += 10
+							GUICtrlSetData($ProgFile, $iProgFile)
 							_GDIPlus_ImageSaveToFileEx($hImage, $sPicsOut, $clsid, $Param)
 							_GDIPlus_ImageDispose($hImage)
+;~ 							ConsoleWrite('0 To 3' & @CRLF)
 						EndIf
-						GUICtrlSetData($ProgFile, 80)
+						$iProgFile += 10
+						GUICtrlSetData($ProgFile, $iProgFile)
 						FileSetTime($sPicsOut, FileGetTime($sPicsIn, 0, 1), 0)
 						FileSetTime($sPicsOut, FileGetTime($sPicsIn, 1, 1), 1)
 						GUICtrlSetData($ProgFile, 100)
@@ -371,15 +458,18 @@ EndFunc   ;==>_IsChecked
 
 Func _CheckWebP()
 	Local $Count = 0
-	If Not (FileExists('C:\Webp\cwebp.exe')) And Not (FileExists('C:\Webp\dwebp.exe')) Then
-		DirCreate('C:\Webp')
-		$Count += FileInstall('libwebp-1.4.0-windows-x64\bin\cwebp.exe', 'C:\Webp\cwebp.exe', $FC_OVERWRITE)
-		$Count += FileInstall('libwebp-1.4.0-windows-x64\bin\dwebp.exe', 'C:\Webp\dwebp.exe', $FC_OVERWRITE)
+	$TempDir = @LocalAppDataDir & '\temp\libwebp-1.6.0-windows-x64\bin'
+	If Not (FileExists($TempDir & '\dwebp.exe')) Or Not (FileExists($TempDir & '\cwebp.exe')) Or Not (FileExists($TempDir & '\webpinfo.exe')) Then
+		DirCreate(@LocalAppDataDir & '\temp\libwebp-1.6.0-windows-x64\bin')
+		$Count += FileInstall('libwebp-1.6.0-windows-x64\bin\cwebp.exe', $TempDir & '\cwebp.exe', $FC_OVERWRITE)
+		$Count += FileInstall('libwebp-1.6.0-windows-x64\bin\dwebp.exe', $TempDir & '\dwebp.exe', $FC_OVERWRITE)
+		$Count += FileInstall('libwebp-1.6.0-windows-x64\bin\webpinfo.exe', $TempDir & '\webpinfo.exe', $FC_OVERWRITE)
 	Else
-		$Count = 2
+		$Count = 3
 	EndIf
-	If $Count = 2 Then
-		Return 'C:\Webp'
+	If $Count = 3 Then
+;~ 		ConsoleWrite($TempDir & @CRLF)
+		Return $TempDir
 	Else
 		Return ''
 	EndIf
@@ -406,16 +496,20 @@ Func _FindPathName(ByRef $aRet, $sPath, $sFindFile, $bSubFolder = 0)
 	Return $aRet[0]
 EndFunc   ;==>_FindPathName
 
-Func _EncodeToWebP($sspathWebP, $ssPicsIn, $ssPicsOut, $bbLossless, $sQuality)
+Func _EncodeToWebP($sspathWebP, $ssPicsIn, $ssPicsOut, $bbLossless, $sQuality, $iWidth = '', $iHeight = '')
 	GUICtrlSetData($ProgFile, 10)
 	$ssspathWebP = $sspathWebP & '\cwebp.exe'
 	$ssPicsIn = '"' & $ssPicsIn & '"'
 	$ssPicsOut = '-o "' & $ssPicsOut & '"'
 	$sParameter = '-mt -quiet -q ' & $sQuality
-	If _IsChecked($Lossless) Then
-		$sParameter &= ' -lossless '
+	If $bbLossless Then
+		$sParameter &= ' -lossless'
+	EndIf
+	If $iWidth <> '' Or $iHeight <> '' Then
+		$sParameter &= ' -resize ' & $iWidth & ' ' & $iHeight
 	EndIf
 	$cmd = $ssspathWebP & ' ' & $sParameter & ' ' & $ssPicsIn & ' ' & $ssPicsOut
+;~ 	ConsoleWrite($cmd & @CRLF)
 	GUICtrlSetData($ProgFile, 40)
 	RunWait(@ComSpec & " /c " & $cmd, @SystemDir, @SW_HIDE)
 	GUICtrlSetData($ProgFile, 60)
@@ -435,8 +529,9 @@ Func _DecodeFromWebP($spathWebP, $ssPicsIn, $ssPicsOut, $cclsid)
 	WEnd
 	$sOutput = StringToBinary($sOutput)     ; Convert the string to binary.
 	$hGdi = _GDIPlus_BitmapCreateFromMemory($sOutput)
-	_GDIPlus_ImageSaveToFileEx($hGdi, $ssPicsOut, $cclsid)
-	_GDIPlus_BitmapDispose($hGdi)
+	Return $hGdi
+;~ 	_GDIPlus_ImageSaveToFileEx($hGdi, $ssPicsOut, $cclsid)
+;~ 	_GDIPlus_BitmapDispose($hGdi)
 	#cs
 	    Ok = 0,
 	    GenericError = 1,
@@ -462,19 +557,48 @@ Func _DecodeFromWebP($spathWebP, $ssPicsIn, $ssPicsOut, $cclsid)
 	#ce
 EndFunc   ;==>_DecodeFromWebP
 
-Func _Resize($hhImage, $bRatio, $iiHeight, $iiWidth, $iipxpercent, $iInterpolation)
-	$aDim = _GDIPlus_ImageGetDimension($hhImage)
-	$iWidthIm = $aDim[0]
-	$iHeightIm = $aDim[1]
+;================================== FUNC _Resize ===========================================
+; Resize the image: calculate the Width and Height according of the inputs
+;
+; Output: if it is a WEBP: Width and Height in $aDim (Width = $aDim[0], Height = $aDim[1])
+;         Otherwise return $hhImage from _GDIPlus_ImageResize
+;
+;===========================================================================================
+Func _Resize($bRatio, $iiWidth, $iiHeight, $iipxpercent, $iInterpolation, $ssOutEncoder, $ssInEncoder, $hhImage = '', $ssPicsIn = '')
+	Local $aDim[2]
+	If $ssInEncoder = 'WEBP' Then
+		$sOutput = ''
+		Local $iPID = Run($pathWebP & '\webpinfo.exe ' & $ssPicsIn, @SystemDir, @SW_HIDE, $STDERR_MERGED)
+		While 1
+			$sOutput &= StdoutRead($iPID)
+			If @error Then ; Exit the loop if the process closes or StdoutRead returns an error.
+				ExitLoop
+			EndIf
+		WEnd
+		$aArray = StringSplit($sOutput, @CRLF)
+		For $i = 1 To UBound($aArray) - 1
+			If StringInStr($aArray[$i], 'Width') Then
+				$aSplit = StringSplit(StringStripWS($aArray[$i], 8), ':')
+				$iWidthIm = $aSplit[2]
+			ElseIf StringInStr($aArray[$i], 'Height') Then
+				$aSplit = StringSplit(StringStripWS($aArray[$i], 8), ':')
+				$iHeightIm = $aSplit[2]
+			EndIf
+		Next
+	Else
+		$aDim = _GDIPlus_ImageGetDimension($hhImage)
+		$iWidthIm = $aDim[0]
+		$iHeightIm = $aDim[1]
+	EndIf
 	If $bRatio Then  ;ratio checked
 		$fRatio = $iWidthIm / $iHeightIm  ; width / height
 		If $iipxpercent = 'px' Then  ; px with ratio
-			If $iiWidth <> '' Then
-				$iWidth = $iiWidth
-				$iHeight = Round($iiWidth / $fRatio)
-			Else
+			If $iiWidth = '' Then
 				$iWidth = Round($iiHeight * $fRatio)
 				$iHeight = $iiHeight
+			Else
+				$iWidth = $iiWidth
+				$iHeight = Round($iiWidth / $fRatio)
 			EndIf
 		EndIf
 	Else ;ratio Not checked
@@ -487,8 +611,16 @@ Func _Resize($hhImage, $bRatio, $iiHeight, $iiWidth, $iipxpercent, $iInterpolati
 		$iHeight = Round($iHeightIm * ($iiHeight / 100))
 		$iWidth = Round($iWidthIm * ($iiWidth / 100))
 	EndIf
-	$hhImage = _GDIPlus_ImageResize($hhImage, $iWidth, $iHeight, $iInterpolation) ;resize image
-	Return $hhImage
+	If $ssOutEncoder = 'WEBP' Then
+		$aDim[0] = $iWidth
+		$aDim[1] = $iHeight
+;~ 		ConsoleWrite('Return $aDim' & @CRLF)
+		Return $aDim
+	Else
+		$hhImage = _GDIPlus_ImageResize($hhImage, $iWidth, $iHeight, $iInterpolation) ;resized image
+;~ 		ConsoleWrite('Return $hhimage' & @CRLF)
+		Return $hhImage
+	EndIf
 EndFunc   ;==>_Resize
 
 Func _CheckResize($bChecked)
@@ -501,6 +633,15 @@ Func _CheckResize($bChecked)
 		GUICtrlSetState($Label3, $GUI_ENABLE)
 		GUICtrlSetState($Interpolation, $GUI_ENABLE)
 		GUICtrlSetState($pxpercent, $GUI_ENABLE)
+		GUICtrlSetState($Label6, $GUI_ENABLE)
+		GUICtrlSetState($Label7, $GUI_ENABLE)
+		If $OutEncoder = 'WEBP' Then
+			GUICtrlSetState($Label3, $GUI_DISABLE)
+			GUICtrlSetState($Interpolation, $GUI_DISABLE)
+		Else
+			GUICtrlSetState($Label3, $GUI_ENABLE)
+			GUICtrlSetState($Interpolation, $GUI_ENABLE)
+		EndIf
 	Else
 		GUICtrlSetState($Ratio, $GUI_DISABLE)
 		GUICtrlSetState($Width, $GUI_DISABLE)
@@ -508,6 +649,8 @@ Func _CheckResize($bChecked)
 		GUICtrlSetState($Height, $GUI_DISABLE)
 		GUICtrlSetState($Label5, $GUI_DISABLE)
 		GUICtrlSetState($Label3, $GUI_DISABLE)
+		GUICtrlSetState($Label6, $GUI_DISABLE)
+		GUICtrlSetState($Label7, $GUI_DISABLE)
 		GUICtrlSetState($Interpolation, $GUI_DISABLE)
 		GUICtrlSetState($pxpercent, $GUI_DISABLE)
 	EndIf
