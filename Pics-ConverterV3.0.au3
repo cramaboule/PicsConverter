@@ -2,9 +2,9 @@
 #AutoIt3Wrapper_Icon=..\AutoItv11.ico
 #AutoIt3Wrapper_Res_Comment=Convert and resize from/to *NEW* WEBP, JPG, BMP, GIF, PNG,...
 #AutoIt3Wrapper_Res_Description=Convert and resize from/to *NEW* WEBP, JPG, BMP, GIF, PNG,...
-#AutoIt3Wrapper_Res_Fileversion=3.0.2.0
+#AutoIt3Wrapper_Res_Fileversion=3.0.2.1
 #AutoIt3Wrapper_Res_ProductName=Pics Converter V3
-#AutoIt3Wrapper_Res_ProductVersion=3.0.2.0
+#AutoIt3Wrapper_Res_ProductVersion=3.0.2.1
 #AutoIt3Wrapper_Res_CompanyName=cramaboule.com
 #AutoIt3Wrapper_Run_Before=%scriptdir%\..\WriteTimestampAndVersion.exe "%in%"
 #AutoIt3Wrapper_Run_After=copy %in% ..\..\Github\PicsConverter\
@@ -17,7 +17,7 @@
 #Au3Stripper_Parameters=/mo
 #EndRegion ;**** Directives created by AutoIt3Wrapper_GUI ****
 #Region    ;Timestamp =====================
-#    Last compile at : 2025/12/09 10:23:11
+#    Last compile at : 2025/12/09 16:04:26
 #EndRegion ;Timestamp =====================
 #cs ----------------------------------------------------------------------------
 
@@ -36,7 +36,8 @@
 	Bug:
 
 	To Do:	how to keep metadata?
-
+	V3.0.2.1	04.12.2025:
+				Slight improve
 	V3.0.2.0	04.12.2025:
 				New: New version of WEBP
 				Changed: path to WEBP
@@ -85,11 +86,11 @@
 #include <Array.au3>
 #include 'ExtMsgBox.au3'
 
-$sVersion = 'V3.0.2.0'
+$sVersion = 'V3.0.2.1'
 $head = 'Pics Conversion ' & $sVersion
 
 Local $Param = 0, $Decoder, $ToCombo, $ToComboOut, $OldOutEncoder, $Oldpxpercent, $Label2
-Local $OldValSlider = '0', $OldJPGQuality = '100', $OldHeight, $Oldwidth, $OldCheckRatio, $OldLossless, $OldResize, $Parameter, $WidthHeight[2]
+Local $OldValSlider = 0, $OldJPGQuality = 100, $OldHeight, $Oldwidth, $OldCheckRatio, $OldLossless, $OldResize, $Parameter, $WidthHeight[2]
 Dim $aInterpolation[2][7] = [[$GDIP_INTERPOLATIONMODE_HIGHQUALITYBICUBIC, $GDIP_INTERPOLATIONMODE_HIGHQUALITYBILINEAR, $GDIP_INTERPOLATIONMODE_NEARESTNEIGHBOR, $GDIP_INTERPOLATIONMODE_BICUBIC, $GDIP_INTERPOLATIONMODE_BILINEAR, $GDIP_INTERPOLATIONMODE_HIGHQUALITY, $GDIP_INTERPOLATIONMODE_LOWQUALITY], ['Bicubic HQ (default)', 'Nearest neighbor', 'Bilinear HQ', 'Bicubic (low)', 'Bilinear (low)', 'High-quality', 'Low-quality']]
 Global $pathWebP = _CheckWebP()
 
@@ -138,9 +139,9 @@ GUICtrlSetData(-1, '%')
 $Ratio = GUICtrlCreateCheckbox("Keep aspect ratio", 175, 47, 115, 20)
 GUICtrlSetState(-1, $GUI_CHECKED)
 
-$Width = GUICtrlCreateInput("", 170, 72, 49, 21)
+$Width = GUICtrlCreateInput("", 170, 72, 49, 21, $ES_NUMBER)
 $Label4 = GUICtrlCreateLabel("px", 220, 77, 15, 17)
-$Height = GUICtrlCreateInput("", 248, 72, 49, 21)
+$Height = GUICtrlCreateInput("", 248, 72, 49, 21, $ES_NUMBER)
 $Label5 = GUICtrlCreateLabel("px", 298, 77, 15, 17)
 $Label6 = GUICtrlCreateLabel("w:", 158, 77, 10, 17)
 $Label7 = GUICtrlCreateLabel("h:", 238, 77, 10, 17)
@@ -267,11 +268,11 @@ While 1
 				GUICtrlSetData($Label5, '%')
 				$sWidth = GUICtrlRead($Width)
 				If $sWidth < 0 And $sWidth > 100 Then
-					GUICtrlSetData($Width, '100')
+					GUICtrlSetData($Width, 100)
 				EndIf
 				$sHeight = GUICtrlRead($Height)
 				If $sHeight < 0 And $sHeight > 100 Then
-					GUICtrlSetData($sHeight, '100')
+					GUICtrlSetData($sHeight, 100)
 				EndIf
 			EndIf
 			$Oldpxpercent = $sPxpercent
@@ -346,16 +347,16 @@ While 1
 				Dim $FileList[1]
 				$iFiles = _FindPathName($FileList, $InPath, "*." & $InEncoder, _IsChecked($Subfolder))
 				If $iFiles <= 0 Then
-					_ExtMsgBox(16, 0, "Caution!", "No files found or invalid path!", 0, $Conv)
+					_ExtMsgBox(16, 0, "Caution!", "No files found or invalid path or wrong input format!", 0, $Conv)
 				Else
 					_GDIPlus_Startup()
 					If $OutEncoder <> 'WEBP' Then
 						$clsid = _GDIPlus_EncodersGetCLSID($OutEncoder)
 					EndIf
 					$nBin = 0
-					If $OutEncoder = 'WEBP' Then $nBin = BitOR($nBin, 4)  ; cwebp : compresse un fichier image en fichier WebP
-					If $InEncoder = 'WEBP' Then $nBin = BitOR($nBin, 2) ; dwebp : décompresser un fichier WebP dans un fichier image
-					If _IsChecked($Resizing) Then $nBin = BitOR($nBin, 1)
+					If $OutEncoder = 'WEBP' Then $nBin += 4  ; cwebp : compresse un fichier image en fichier WebP
+					If $InEncoder = 'WEBP' Then $nBin += 2  ; dwebp : décompresser un fichier WebP dans un fichier image
+					If _IsChecked($Resizing) Then $nBin += 1
 ;~ 					ConsoleWrite($nBin & @CRLF)
 					For $i = 1 To $FileList[0]
 						$iProgFile = 0
