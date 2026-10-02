@@ -1,3 +1,5 @@
+Convert batch pictures in many format including WEBP
+
 <img width="585" height="370" alt="image" src="https://github.com/user-attachments/assets/829dd5b4-6d5b-4ef8-8704-e2531e8eeef8" />
 
 
